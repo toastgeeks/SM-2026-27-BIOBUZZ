@@ -14,6 +14,8 @@ package org.firstinspires.ftc.teamcode
  *   motor 1: intake
  *   motor 2: right front wheel
  *   motor 3: fly wheel
+ *
+ * fly wheel 2 is reversed in code relative to fly wheel.
  */
 object HardwareNames {
     const val FRONT_LEFT = "front left wheel"
@@ -23,5 +25,6 @@ object HardwareNames {
     const val INTAKE = "intake"
     const val RIGHT_FRONT = "right front wheel"
     const val FLYWHEEL = "fly wheel"
+    const val FLYWHEEL_2 = "fly wheel 2"
     const val PINPOINT = "pinpoint"
 }

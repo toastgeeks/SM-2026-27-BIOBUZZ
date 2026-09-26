@@ -18,6 +18,7 @@ class TestEverything : LinearOpMode() {
         val backRight = motor(HardwareNames.BACK_RIGHT, DcMotorSimple.Direction.FORWARD)
         val intake = motor(HardwareNames.INTAKE, DcMotorSimple.Direction.REVERSE)
         val flywheel = motor(HardwareNames.FLYWHEEL, DcMotorSimple.Direction.FORWARD)
+        val flywheel2 = motor(HardwareNames.FLYWHEEL_2, DcMotorSimple.Direction.REVERSE)
         val feed = motor(HardwareNames.FEED, DcMotorSimple.Direction.FORWARD)
 
         telemetry.addLine("Gamepad 1: left stick drives, right stick turns.")
@@ -58,6 +59,7 @@ class TestEverything : LinearOpMode() {
 
             intake.power = intakePower
             flywheel.power = flywheelPower
+            flywheel2.power = flywheelPower
             feed.power = feedPower
 
             telemetry.addData("Intake", intakePower)
