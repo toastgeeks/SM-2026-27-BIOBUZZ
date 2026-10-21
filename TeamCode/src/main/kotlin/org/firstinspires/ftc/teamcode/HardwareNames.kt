@@ -3,28 +3,30 @@ package org.firstinspires.ftc.teamcode
 /**
  * Device names from the Control Hub configuration "bi2w".
  *
- * Control Hub
- *   motor 0: front left wheel
- *   motor 1: feed
- *   motor 2: back left wheel
- *   motor 3: back right wheel
+ * Control Hub drivetrain
+ *   motor 0: backLeftMotor
+ *   motor 1: backRightMotor
+ *   motor 2: frontLeftMotor
+ *   motor 3: frontRightMotor
  *   I2C bus 1: pinpoint
  *
  * Expansion Hub
- *   motor 1: intake
- *   motor 2: right front wheel
- *   motor 3: fly wheel
+ *   motor 0: flywheel1
+ *   motor 1: flywheel2
+ *   motor 2: feed
+ *   motor 3: intake
  *
- * fly wheel 2 is reversed in code relative to fly wheel.
+ * Both flywheels use Direction.REVERSE. They are not opposing.
+ * flywheel1 has an encoder on Expansion Hub port 0. flywheel2 does not.
  */
 object HardwareNames {
-    const val FRONT_LEFT = "front left wheel"
+    const val FRONT_LEFT = "frontLeftMotor"
+    const val RIGHT_FRONT = "frontRightMotor"
+    const val BACK_LEFT = "backLeftMotor"
+    const val BACK_RIGHT = "backRightMotor"
+    const val FLYWHEEL = "flywheel1"
+    const val FLYWHEEL_2 = "flywheel2"
     const val FEED = "feed"
-    const val BACK_LEFT = "back left wheel"
-    const val BACK_RIGHT = "back right wheel"
     const val INTAKE = "intake"
-    const val RIGHT_FRONT = "right front wheel"
-    const val FLYWHEEL = "fly wheel"
-    const val FLYWHEEL_2 = "fly wheel 2"
     const val PINPOINT = "pinpoint"
 }

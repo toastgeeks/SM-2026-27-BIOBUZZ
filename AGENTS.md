@@ -17,21 +17,23 @@ The Pedro Quickstart package `org.firstinspires.ftc.teamcode.pedro` stays Java. 
 
 ## This robot
 
-Hardware configuration `bi2w`. `hardwareMap` names must match these strings, including spaces. Use `HardwareNames`.
+Hardware configuration `bi2w`. `hardwareMap` names must match these strings. Use `HardwareNames`.
 
 | Device | Name |
 |---|---|
-| Control Hub 0 | `front left wheel` |
-| Control Hub 1 | `feed` |
-| Control Hub 2 | `back left wheel` |
-| Control Hub 3 | `back right wheel` |
+| Control Hub 0 | `backLeftMotor` |
+| Control Hub 1 | `backRightMotor` |
+| Control Hub 2 | `frontLeftMotor` |
+| Control Hub 3 | `frontRightMotor` |
 | Control Hub I2C 1 | `pinpoint` |
-| Expansion Hub 1 | `intake` |
-| Expansion Hub 2 | `right front wheel` |
-| Expansion Hub 3 | `fly wheel` |
-| (second shooter) | `fly wheel 2` |
+| Expansion Hub 0 | `flywheel1` |
+| Expansion Hub 1 | `flywheel2` |
+| Expansion Hub 2 | `feed` |
+| Expansion Hub 3 | `intake` |
 
-Directions already chosen: both left drive motors reversed, intake reversed, `fly wheel` forward, `fly wheel 2` reversed. Same positive power on both flywheels.
+Directions already chosen: both left drive motors reversed, intake reversed, both flywheels reversed. The same power command goes to both flywheels, and they are not opposing.
+
+`flywheel1` has an encoder plugged into Expansion Hub port 0. `flywheel2` does not. Bench OpModes keep `RUN_WITHOUT_ENCODER` and read flywheel1 position and velocity.
 
 ## OpModes
 

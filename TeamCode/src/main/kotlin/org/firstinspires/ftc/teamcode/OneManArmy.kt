@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.hardware.DcMotor
+import com.qualcomm.robotcore.hardware.DcMotorEx
 import com.qualcomm.robotcore.hardware.DcMotorSimple
 import kotlin.math.abs
 
@@ -17,12 +18,12 @@ class OneManArmy : LinearOpMode() {
         val backLeft = motor(HardwareNames.BACK_LEFT, DcMotorSimple.Direction.REVERSE)
         val backRight = motor(HardwareNames.BACK_RIGHT, DcMotorSimple.Direction.FORWARD)
         val intake = motor(HardwareNames.INTAKE, DcMotorSimple.Direction.REVERSE)
-        val flywheel = motor(HardwareNames.FLYWHEEL, DcMotorSimple.Direction.FORWARD)
+        val flywheel = motor(HardwareNames.FLYWHEEL, DcMotorSimple.Direction.REVERSE)
+        resetEncoder(flywheel)
         val flywheel2 = motor(HardwareNames.FLYWHEEL_2, DcMotorSimple.Direction.REVERSE)
         val feed = motor(HardwareNames.FEED, DcMotorSimple.Direction.FORWARD)
 
-        telemetry.addLine("Left stick drives, right stick turns.")
-        telemetry.addLine("LT positive intake, LB negative intake, Dpad up/down flywheel ±0.05, RT flywheel, RB feed.")
+        addControls()
         telemetry.update()
         waitForStart()
 
@@ -77,20 +78,35 @@ class OneManArmy : LinearOpMode() {
             flywheel2.power = flywheelOutput
             feed.power = feedPower
 
+            addControls()
             telemetry.addData("Intake", intakePower)
             telemetry.addData("Flywheel", "%.2f", flywheelPower)
+            telemetry.addData("Flywheel1 pos", flywheel.currentPosition)
+            telemetry.addData("Flywheel1 ticks/s", "%.0f", flywheel.velocity)
             telemetry.addData("Feed", feedPower)
             telemetry.update()
         }
     }
 
-    private fun motor(name: String, direction: DcMotorSimple.Direction): DcMotor {
-        return hardwareMap.get(DcMotor::class.java, name).apply {
+    private fun motor(name: String, direction: DcMotorSimple.Direction): DcMotorEx {
+        return hardwareMap.get(DcMotorEx::class.java, name).apply {
             this.direction = direction
             mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
             zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
             power = 0.0
         }
+    }
+
+    private fun addControls() {
+        telemetry.addLine("Left stick drives. Right stick turns.")
+        telemetry.addLine("LT intake positive. LB intake negative.")
+        telemetry.addLine("Dpad up/down flywheel ±0.05. RT runs flywheel.")
+        telemetry.addLine("RB feed positive.")
+    }
+
+    private fun resetEncoder(motor: DcMotorEx) {
+        motor.mode = DcMotor.RunMode.STOP_AND_RESET_ENCODER
+        motor.mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
     }
 
     private companion object {

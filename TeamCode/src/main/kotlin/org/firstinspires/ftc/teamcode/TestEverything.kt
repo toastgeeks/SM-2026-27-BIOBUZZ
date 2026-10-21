@@ -3,11 +3,14 @@ package org.firstinspires.ftc.teamcode
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.hardware.DcMotor
+import com.qualcomm.robotcore.hardware.DcMotorEx
 import com.qualcomm.robotcore.hardware.DcMotorSimple
 import kotlin.math.abs
 
 /**
- * Gamepad 1 drives. Gamepad 2 runs the intake, flywheel, and feed.
+ * Gamepad 1 drives. Gamepad 2 runs the intake, both flywheels, and the feed.
+ * Each of those can run positive or negative. Both flywheels share a direction and a power.
+ * flywheel1's encoder is reset at init and reported as ticks and ticks per second.
  */
 @TeleOp(name = "Test Everything", group = "Test")
 class TestEverything : LinearOpMode() {
@@ -17,18 +20,14 @@ class TestEverything : LinearOpMode() {
         val backLeft = motor(HardwareNames.BACK_LEFT, DcMotorSimple.Direction.REVERSE)
         val backRight = motor(HardwareNames.BACK_RIGHT, DcMotorSimple.Direction.FORWARD)
         val intake = motor(HardwareNames.INTAKE, DcMotorSimple.Direction.REVERSE)
-        val flywheel = motor(HardwareNames.FLYWHEEL, DcMotorSimple.Direction.FORWARD)
+        val flywheel = motor(HardwareNames.FLYWHEEL, DcMotorSimple.Direction.REVERSE)
+        resetEncoder(flywheel)
         val flywheel2 = motor(HardwareNames.FLYWHEEL_2, DcMotorSimple.Direction.REVERSE)
         val feed = motor(HardwareNames.FEED, DcMotorSimple.Direction.FORWARD)
 
-        telemetry.addLine("Gamepad 1: left stick drives, right stick turns.")
-        telemetry.addLine("Gamepad 2: LB positive intake, LT negative intake, Dpad up/down flywheel ±0.05, RT flywheel, RB feed forward, X feed reverse.")
+        addControls()
         telemetry.update()
         waitForStart()
-
-        var flywheelPower = FLYWHEEL_INITIAL
-        var flywheelUpWasPressed = false
-        var flywheelDownWasPressed = false
 
         while (opModeIsActive()) {
             val forward = -gamepad1.left_stick_y.toDouble()
@@ -57,39 +56,27 @@ class TestEverything : LinearOpMode() {
             rightFront.power = rightFrontPower
             backRight.power = backRightPower
 
-            val intakePower = if (gamepad2.left_bumper) 1.0 else -gamepad2.left_trigger.toDouble()
-            val feedPower = when {
-                gamepad2.right_bumper -> 1.0
-                gamepad2.cross -> -1.0
-                else -> 0.0
-            }
-
-            val flywheelUp = gamepad2.dpad_up
-            val flywheelDown = gamepad2.dpad_down
-            if (flywheelUp && !flywheelUpWasPressed) {
-                flywheelPower = (flywheelPower + FLYWHEEL_STEP).coerceAtMost(1.0)
-            }
-            if (flywheelDown && !flywheelDownWasPressed) {
-                flywheelPower = (flywheelPower - FLYWHEEL_STEP).coerceAtLeast(0.0)
-            }
-            flywheelUpWasPressed = flywheelUp
-            flywheelDownWasPressed = flywheelDown
-            val flywheelOutput = if (gamepad2.right_trigger > 0f) flywheelPower else 0.0
+            val intakePower = if (gamepad2.left_bumper) -1.0 else gamepad2.left_trigger.toDouble()
+            val flywheelPower = -gamepad2.right_stick_y.toDouble()
+            val feedPower = if (gamepad2.right_bumper) -1.0 else gamepad2.right_trigger.toDouble()
 
             intake.power = intakePower
-            flywheel.power = flywheelOutput
-            flywheel2.power = flywheelOutput
+            flywheel.power = flywheelPower
+            flywheel2.power = flywheelPower
             feed.power = feedPower
 
-            telemetry.addData("Intake", intakePower)
+            addControls()
+            telemetry.addData("Intake", "%.2f", intakePower)
             telemetry.addData("Flywheel", "%.2f", flywheelPower)
-            telemetry.addData("Feed", feedPower)
+            telemetry.addData("Flywheel1 pos", flywheel.currentPosition)
+            telemetry.addData("Flywheel1 ticks/s", "%.0f", flywheel.velocity)
+            telemetry.addData("Feed", "%.2f", feedPower)
             telemetry.update()
         }
     }
 
-    private fun motor(name: String, direction: DcMotorSimple.Direction): DcMotor {
-        return hardwareMap.get(DcMotor::class.java, name).apply {
+    private fun motor(name: String, direction: DcMotorSimple.Direction): DcMotorEx {
+        return hardwareMap.get(DcMotorEx::class.java, name).apply {
             this.direction = direction
             mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
             zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
@@ -97,8 +84,15 @@ class TestEverything : LinearOpMode() {
         }
     }
 
-    private companion object {
-        const val FLYWHEEL_INITIAL = 0.8
-        const val FLYWHEEL_STEP = 0.05
+    private fun addControls() {
+        telemetry.addLine("GP1 left stick drives. Right stick turns.")
+        telemetry.addLine("GP2 LT intake positive. LB intake negative.")
+        telemetry.addLine("GP2 right stick Y flywheels. Up positive, down negative.")
+        telemetry.addLine("GP2 RT feed positive. RB feed negative.")
+    }
+
+    private fun resetEncoder(motor: DcMotorEx) {
+        motor.mode = DcMotor.RunMode.STOP_AND_RESET_ENCODER
+        motor.mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
     }
 }

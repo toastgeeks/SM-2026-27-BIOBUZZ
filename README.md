@@ -12,18 +12,17 @@ Gamepad 1 drives. Gamepad 2 runs the mechanisms.
 |---|---|
 | Left stick | Drive |
 | Right stick X | Turn |
-| Gamepad 2 left bumper | Intake forward at full power. Wins if the left trigger is also held. |
-| Gamepad 2 left trigger | Intake in reverse. Power follows the trigger. |
-| Gamepad 2 d-pad up / down | Raise or lower the stored flywheel power by 0.05. Starts at 0.80 and stays between 0.00 and 1.00. One step per press. |
-| Gamepad 2 right trigger | Run both flywheels at the stored power. Releasing it stops them and keeps the stored value. |
-| Gamepad 2 right bumper | Feed forward at full power while held. Wins if X is also held. |
-| Gamepad 2 X | Feed in reverse at full power while held. |
+| Gamepad 2 left trigger | Intake positive. Power follows the trigger. |
+| Gamepad 2 left bumper | Intake negative at full power. Wins if the left trigger is also held. |
+| Gamepad 2 right stick Y | Both flywheels. Stick up is positive, stick down is negative. Same power, and they are not opposing. |
+| Gamepad 2 right trigger | Feed positive. Power follows the trigger. |
+| Gamepad 2 right bumper | Feed negative at full power. Wins if the right trigger is also held. |
 
-Telemetry shows the stored flywheel power, including while the right trigger is released.
+Telemetry shows flywheel1 encoder position in ticks and velocity in ticks per second. The count resets to 0 at init. flywheel2 has no encoder.
 
 ### One Man Army
 
-Gamepad 1 does everything. Drive, flywheel, and feed match Test Everything. The intake is not swapped: the left trigger runs it forward and follows the trigger, and the left bumper runs it in reverse at full power.
+Gamepad 1 does everything. Drive matches Test Everything. The left trigger runs the intake positive and follows the trigger, and the left bumper runs it negative at full power. The right bumper runs the feed positive at full power. Flywheel power is stored: d-pad up and down step it by 0.05 from 0.80, staying between 0.00 and 1.00, and the right trigger runs both flywheels at that power.
 
 ### Auto
 
@@ -34,7 +33,7 @@ No gamepad. After start, the robot drives forward at half power for one second, 
 | OpMode | Gamepad 1 |
 |---|---|
 | Check: Drive | Left stick drives. Right stick X turns. |
-| Check: Motors | Hold a button to run that motor at 30%. Left bumper reverses it. A front left, Y back left, B back right, X right front, d-pad up intake, d-pad down feed, d-pad right `fly wheel`. |
+| Check: Motors | Hold a button to run that motor at 30%. Left bumper reverses it. A front left, Y back left, B back right, X right front, d-pad up intake, d-pad down feed, d-pad right `flywheel1`, d-pad left `flywheel2`. Telemetry shows the flywheel1 encoder. |
 | Check: Pinpoint | Push the robot to see the pose change. A zeros the pose. X recalibrates the IMU; hold still for that. |
 
 ## Welcome!
