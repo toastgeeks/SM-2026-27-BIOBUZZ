@@ -22,9 +22,13 @@ class TestEverything : LinearOpMode() {
         val feed = motor(HardwareNames.FEED, DcMotorSimple.Direction.FORWARD)
 
         telemetry.addLine("Gamepad 1: left stick drives, right stick turns.")
-        telemetry.addLine("Gamepad 2: LT positive intake, LB negative intake, RT flywheel, RB feed.")
+        telemetry.addLine("Gamepad 2: LB positive intake, LT negative intake, Dpad up/down flywheel ±0.05, RT flywheel, RB feed forward, X feed reverse.")
         telemetry.update()
         waitForStart()
+
+        var flywheelPower = FLYWHEEL_INITIAL
+        var flywheelUpWasPressed = false
+        var flywheelDownWasPressed = false
 
         while (opModeIsActive()) {
             val forward = -gamepad1.left_stick_y.toDouble()
@@ -53,17 +57,32 @@ class TestEverything : LinearOpMode() {
             rightFront.power = rightFrontPower
             backRight.power = backRightPower
 
-            val intakePower = if (gamepad2.left_bumper) -1.0 else gamepad2.left_trigger.toDouble()
-            val flywheelPower = gamepad2.right_trigger.toDouble()
-            val feedPower = if (gamepad2.right_bumper) 1.0 else 0.0
+            val intakePower = if (gamepad2.left_bumper) 1.0 else -gamepad2.left_trigger.toDouble()
+            val feedPower = when {
+                gamepad2.right_bumper -> 1.0
+                gamepad2.cross -> -1.0
+                else -> 0.0
+            }
+
+            val flywheelUp = gamepad2.dpad_up
+            val flywheelDown = gamepad2.dpad_down
+            if (flywheelUp && !flywheelUpWasPressed) {
+                flywheelPower = (flywheelPower + FLYWHEEL_STEP).coerceAtMost(1.0)
+            }
+            if (flywheelDown && !flywheelDownWasPressed) {
+                flywheelPower = (flywheelPower - FLYWHEEL_STEP).coerceAtLeast(0.0)
+            }
+            flywheelUpWasPressed = flywheelUp
+            flywheelDownWasPressed = flywheelDown
+            val flywheelOutput = if (gamepad2.right_trigger > 0f) flywheelPower else 0.0
 
             intake.power = intakePower
-            flywheel.power = flywheelPower
-            flywheel2.power = flywheelPower
+            flywheel.power = flywheelOutput
+            flywheel2.power = flywheelOutput
             feed.power = feedPower
 
             telemetry.addData("Intake", intakePower)
-            telemetry.addData("Flywheel", flywheelPower)
+            telemetry.addData("Flywheel", "%.2f", flywheelPower)
             telemetry.addData("Feed", feedPower)
             telemetry.update()
         }
@@ -76,5 +95,10 @@ class TestEverything : LinearOpMode() {
             zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
             power = 0.0
         }
+    }
+
+    private companion object {
+        const val FLYWHEEL_INITIAL = 0.8
+        const val FLYWHEEL_STEP = 0.05
     }
 }

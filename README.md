@@ -2,6 +2,41 @@
 
 This repository contains the public FTC SDK for the BIOBUZZ (2026-2027) competition season.
 
+## Controls
+
+### Test Everything
+
+Gamepad 1 drives. Gamepad 2 runs the mechanisms.
+
+| Control | Action |
+|---|---|
+| Left stick | Drive |
+| Right stick X | Turn |
+| Gamepad 2 left bumper | Intake forward at full power. Wins if the left trigger is also held. |
+| Gamepad 2 left trigger | Intake in reverse. Power follows the trigger. |
+| Gamepad 2 d-pad up / down | Raise or lower the stored flywheel power by 0.05. Starts at 0.80 and stays between 0.00 and 1.00. One step per press. |
+| Gamepad 2 right trigger | Run both flywheels at the stored power. Releasing it stops them and keeps the stored value. |
+| Gamepad 2 right bumper | Feed forward at full power while held. Wins if X is also held. |
+| Gamepad 2 X | Feed in reverse at full power while held. |
+
+Telemetry shows the stored flywheel power, including while the right trigger is released.
+
+### One Man Army
+
+Gamepad 1 does everything. Drive, flywheel, and feed match Test Everything. The intake is not swapped: the left trigger runs it forward and follows the trigger, and the left bumper runs it in reverse at full power.
+
+### Auto
+
+No gamepad. After start, the robot drives forward at half power for one second, then stops.
+
+### Check
+
+| OpMode | Gamepad 1 |
+|---|---|
+| Check: Drive | Left stick drives. Right stick X turns. |
+| Check: Motors | Hold a button to run that motor at 30%. Left bumper reverses it. A front left, Y back left, B back right, X right front, d-pad up intake, d-pad down feed, d-pad right `fly wheel`. |
+| Check: Pinpoint | Push the robot to see the pose change. A zeros the pose. X recalibrates the IMU; hold still for that. |
+
 ## Welcome!
 This GitHub repository contains the source code that is used to build an Android app to control a *FIRST* Tech Challenge competition robot.  To use this SDK, download/clone the entire project to your local computer.
 
