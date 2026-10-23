@@ -1,5 +1,6 @@
-package org.firstinspires.ftc.teamcode
+package org.firstinspires.ftc.teamcode.check
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 
@@ -7,6 +8,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp
  * Minimal Kotlin OpMode. Appears on the Driver Station as "Hello World".
  */
 @TeleOp(name = "Hello World", group = "Test")
+@Disabled
 class HelloWorld : LinearOpMode() {
     override fun runOpMode() {
         telemetry.addData("Status", "Hello World")

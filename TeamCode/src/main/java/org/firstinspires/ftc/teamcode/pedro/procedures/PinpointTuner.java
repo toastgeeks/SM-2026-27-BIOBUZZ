@@ -143,17 +143,11 @@ class PinpointForwardDirection extends TuningOpMode<Boolean> {
         localizer.setPose(Pose.zero());
         localizer.update();
 
-        // Keep the last reading taken before Stop. After Stop the Pinpoint reports a reset
-        // pose (x = 0), so reading it afterwards always returns false (not reversed).
-        double x = 0;
         while (!isStopRequested()) {
             localizer.update();
-            if (!isStopRequested()) {
-                x = localizer.pose().x();
-            }
         }
 
-        return x < 0;
+        return localizer.pose().x() < 0;
     }
 }
 
@@ -193,17 +187,11 @@ class PinpointStrafeDirection extends TuningOpMode<Boolean> {
         waitForStart();
         localizer.setPose(Pose.zero());
         localizer.update();
-        // Keep the last reading taken before Stop. After Stop the Pinpoint reports a reset
-        // pose (y = 0), so reading it afterwards always returns false (not reversed).
-        double y = 0;
         while (!isStopRequested()) {
             localizer.update();
-            if (!isStopRequested()) {
-                y = localizer.pose().y();
-            }
         }
 
-        return y < 0;
+        return localizer.pose().y() < 0;
     }
 }
 
