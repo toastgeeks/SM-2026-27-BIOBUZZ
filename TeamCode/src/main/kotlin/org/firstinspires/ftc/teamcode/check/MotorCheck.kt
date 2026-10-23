@@ -1,10 +1,12 @@
-package org.firstinspires.ftc.teamcode
+package org.firstinspires.ftc.teamcode.check
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorEx
 import com.qualcomm.robotcore.hardware.DcMotorSimple
+import org.firstinspires.ftc.teamcode.HardwareNames
 
 /**
  * Spins one motor at a time so each port can be checked on the bench.
@@ -12,6 +14,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple
  * Hold a button to run that motor at 30% power. Left bumper reverses it.
  */
 @TeleOp(name = "Check: Motors", group = "Check")
+@Disabled
 class MotorCheck : LinearOpMode() {
     private data class MotorBinding(
         val label: String,

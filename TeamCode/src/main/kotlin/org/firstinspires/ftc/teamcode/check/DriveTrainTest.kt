@@ -1,9 +1,11 @@
-package org.firstinspires.ftc.teamcode
+package org.firstinspires.ftc.teamcode.check
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorSimple
+import org.firstinspires.ftc.teamcode.HardwareNames
 
 /**
  * Spins one drive wheel at a time so the d-pad mapping can be checked.
@@ -17,6 +19,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple
  * D-pad down: back left
  */
 @TeleOp(name = "DriveTrainTest", group = "Test")
+@Disabled
 class DriveTrainTest : LinearOpMode() {
     override fun runOpMode() {
         val frontLeft = motor(HardwareNames.FRONT_LEFT, DcMotorSimple.Direction.REVERSE)
