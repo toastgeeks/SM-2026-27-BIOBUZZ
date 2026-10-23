@@ -5,7 +5,6 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorEx
 import com.qualcomm.robotcore.hardware.DcMotorSimple
-import kotlin.math.abs
 
 /**
  * Gamepad 1 drives. Gamepad 2 runs the intake, both flywheels, and the feed.
@@ -15,10 +14,7 @@ import kotlin.math.abs
 @TeleOp(name = "Test Everything", group = "Test")
 class TestEverything : LinearOpMode() {
     override fun runOpMode() {
-        val leftFront = motor(HardwareNames.FRONT_LEFT, DcMotorSimple.Direction.REVERSE)
-        val rightFront = motor(HardwareNames.RIGHT_FRONT, DcMotorSimple.Direction.FORWARD)
-        val backLeft = motor(HardwareNames.BACK_LEFT, DcMotorSimple.Direction.REVERSE)
-        val backRight = motor(HardwareNames.BACK_RIGHT, DcMotorSimple.Direction.FORWARD)
+        val drive = BotCentricDrive(hardwareMap)
         val intake = motor(HardwareNames.INTAKE, DcMotorSimple.Direction.REVERSE)
         val flywheel = motor(HardwareNames.FLYWHEEL, DcMotorSimple.Direction.REVERSE)
         resetEncoder(flywheel)
@@ -30,35 +26,30 @@ class TestEverything : LinearOpMode() {
         waitForStart()
 
         while (opModeIsActive()) {
-            val forward = -gamepad1.left_stick_y.toDouble()
-            val strafe = gamepad1.left_stick_x.toDouble()
-            val turn = gamepad1.right_stick_x.toDouble()
-
-            var leftFrontPower = forward + strafe + turn
-            var backLeftPower = forward - strafe + turn
-            var rightFrontPower = forward - strafe - turn
-            var backRightPower = forward + strafe - turn
-
-            val max = maxOf(
-                1.0,
-                abs(leftFrontPower),
-                abs(backLeftPower),
-                abs(rightFrontPower),
-                abs(backRightPower),
+            drive.drive(
+                forward = -gamepad1.left_stick_y.toDouble(),
+                strafe = gamepad1.left_stick_x.toDouble(),
+                turn = gamepad1.right_stick_x.toDouble(),
             )
-            leftFrontPower /= max
-            backLeftPower /= max
-            rightFrontPower /= max
-            backRightPower /= max
 
-            leftFront.power = leftFrontPower
-            backLeft.power = backLeftPower
-            rightFront.power = rightFrontPower
-            backRight.power = backRightPower
+            val flywheelFromTrigger = gamepad2.left_trigger > 0f
+            // Target flywheel RPM is not chosen yet, so this gate stays open.
+            val atTargetRpm = true
 
-            val intakePower = if (gamepad2.left_bumper) -1.0 else gamepad2.left_trigger.toDouble()
-            val flywheelPower = -gamepad2.right_stick_y.toDouble()
-            val feedPower = if (gamepad2.right_bumper) -1.0 else gamepad2.right_trigger.toDouble()
+            val intakePower = when {
+                flywheelFromTrigger -> 0.0
+                gamepad2.circle -> -1.0
+                else -> gamepad2.right_trigger.toDouble()
+            }
+            val flywheelPower = when {
+                gamepad2.square -> -1.0
+                else -> gamepad2.left_trigger.toDouble()
+            }
+            val feedPower = when {
+                gamepad2.left_bumper -> -1.0
+                gamepad2.right_bumper && atTargetRpm -> 1.0
+                else -> 0.0
+            }
 
             intake.power = intakePower
             flywheel.power = flywheelPower
@@ -70,6 +61,7 @@ class TestEverything : LinearOpMode() {
             telemetry.addData("Flywheel", "%.2f", flywheelPower)
             telemetry.addData("Flywheel1 pos", flywheel.currentPosition)
             telemetry.addData("Flywheel1 ticks/s", "%.0f", flywheel.velocity)
+            telemetry.addData("At target RPM", atTargetRpm)
             telemetry.addData("Feed", "%.2f", feedPower)
             telemetry.update()
         }
@@ -86,9 +78,9 @@ class TestEverything : LinearOpMode() {
 
     private fun addControls() {
         telemetry.addLine("GP1 left stick drives. Right stick turns.")
-        telemetry.addLine("GP2 LT intake positive. LB intake negative.")
-        telemetry.addLine("GP2 right stick Y flywheels. Up positive, down negative.")
-        telemetry.addLine("GP2 RT feed positive. RB feed negative.")
+        telemetry.addLine("GP2 RT intake. Circle intake reverse.")
+        telemetry.addLine("GP2 LT flywheel. Square flywheel reverse. LT ignores intake.")
+        telemetry.addLine("GP2 RB feed at target RPM. LB feed reverse.")
     }
 
     private fun resetEncoder(motor: DcMotorEx) {
