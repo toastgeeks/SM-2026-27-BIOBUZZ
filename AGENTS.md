@@ -49,7 +49,7 @@ Call `telemetry.update()` at the end of the loop. The SDK sends telemetry at mos
 
 ## Pedro Pathing 3
 
-Dependencies: `com.pedropathing:revhub:3.0.1` and `com.pedropathing:tuning:1.0.1`.
+Dependencies: `com.pedropathing:revhub:3.0.2` and `com.pedropathing:tuning:1.0.1`.
 
 `Constants.create(HardwareMap)` is still a stub and returns null. Construct `Follower` as `(Localizer, Drivetrain, Algorithm)`. Ignore the swapped order in the stub comment.
 
