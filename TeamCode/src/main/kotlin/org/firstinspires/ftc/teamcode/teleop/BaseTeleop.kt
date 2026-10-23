@@ -14,6 +14,7 @@ import org.firstinspires.ftc.teamcode.subsystems.Shooter
  * Gamepad 1 drives field-centric through the Pedro follower. [manipulator] runs the
  * intake, flywheels, and feed as Ivy commands.
  *
+ * Triangle on gamepad 1 sets the current heading to zero. Point the robot, then press it.
  * Manipulator: RT intake, circle intake reverse. LT flywheel, square flywheel reverse.
  * LT ignores intake. RB feed, LB feed reverse.
  */
@@ -30,13 +31,22 @@ abstract class BaseTeleop : LinearOpMode() {
         val feed = Feed(hardwareMap)
 
         telemetry.addLine("GP1 left stick drives. Right stick turns.")
+        telemetry.addLine("GP1 triangle sets heading to 0.")
         telemetry.addLine("RT intake. Circle intake reverse.")
         telemetry.addLine("LT flywheel. Square flywheel reverse. LT ignores intake.")
         telemetry.addLine("RB feed. LB feed reverse.")
         telemetry.update()
         waitForStart()
 
+        var headingResetWasPressed = false
+
         while (opModeIsActive()) {
+            val resetHeading = gamepad1.triangle
+            if (resetHeading && !headingResetWasPressed) {
+                follower.setHeading(0.0)
+            }
+            headingResetWasPressed = resetHeading
+
             // Pedro is left-positive and counterclockwise-positive, so the sticks are negated.
             follower.manual(
                 ManualDrive.fieldCentric(
