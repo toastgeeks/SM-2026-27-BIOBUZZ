@@ -7,4 +7,5 @@ import com.qualcomm.robotcore.hardware.Gamepad
 @TeleOp(name = "One Man Army", group = "Teleop")
 class OneManArmy : BaseTeleop() {
     override val manipulator: Gamepad get() = gamepad1
+    override val useShooterVelocityControl = true
 }

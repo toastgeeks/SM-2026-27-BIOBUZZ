@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.teleop
 
+import com.acmerobotics.dashboard.FtcDashboard
+import com.acmerobotics.dashboard.telemetry.MultipleTelemetry
 import com.pedropathing.follower.ManualDrive
 import com.pedropathing.ivy.Scheduler
 import com.pedropathing.math.Pose
@@ -22,23 +24,68 @@ abstract class BaseTeleop : LinearOpMode() {
     /** The gamepad that runs the mechanisms. Read after the OpMode is initialized. */
     protected abstract val manipulator: Gamepad
 
+    /** Opts a TeleOp into shared dashboard PIDF, velocity target, and d-pad adjustments. */
+    protected open val useShooterVelocityControl = false
+
     override fun runOpMode() {
         Scheduler.reset()
+        if (useShooterVelocityControl) {
+            telemetry = MultipleTelemetry(telemetry, FtcDashboard.getInstance().telemetry)
+        }
         val follower = Constants.create(hardwareMap)
         follower.setPose(Pose(0.0, 0.0, 0.0))
         val intake = Intake(hardwareMap)
-        val shooter = Shooter(hardwareMap)
+        var shooterPIDF = if (useShooterVelocityControl) Shooter.PIDF_COEFFICIENTS else null
+        val shooter = Shooter(hardwareMap, shooterPIDF)
         val feed = Feed(hardwareMap)
+
+        fun updateShooterPIDF() {
+            val appliedPIDF = shooterPIDF ?: return
+            val updatedPIDF = Shooter.PIDF_COEFFICIENTS
+            if (updatedPIDF.p != appliedPIDF.p || updatedPIDF.i != appliedPIDF.i ||
+                updatedPIDF.d != appliedPIDF.d || updatedPIDF.f != appliedPIDF.f
+            ) {
+                shooter.setPIDF(updatedPIDF)
+                shooterPIDF = updatedPIDF
+            }
+        }
+
+        fun addShooterPIDFTelemetry() {
+            val appliedPIDF = shooterPIDF ?: return
+            telemetry.addData("Shooter P", appliedPIDF.p)
+            telemetry.addData("Shooter I", appliedPIDF.i)
+            telemetry.addData("Shooter D", appliedPIDF.d)
+            telemetry.addData("Shooter F", appliedPIDF.f)
+        }
 
         telemetry.addLine("GP1 left stick drives. Right stick turns.")
         telemetry.addLine("GP1 triangle sets heading to 0.")
         telemetry.addLine("RT intake. Circle intake reverse.")
         telemetry.addLine("LT flywheel. Square flywheel reverse. LT ignores intake.")
         telemetry.addLine("RB feed. LB feed reverse.")
+        if (useShooterVelocityControl) {
+            telemetry.addLine("D-pad up/down adjusts shooter target by ${Shooter.TARGET_STEP} ticks/s.")
+            telemetry.addLine("Dashboard config: Shooter PIDF_*, TARGET and TARGET_STEP.")
+            telemetry.addData("Shooter target (ticks/s)", Shooter.TARGET)
+            addShooterPIDFTelemetry()
+        }
         telemetry.update()
+
+        if (useShooterVelocityControl) {
+            while (opModeInInit()) {
+                updateShooterPIDF()
+                telemetry.addData("Shooter target (ticks/s)", Shooter.TARGET)
+                addShooterPIDFTelemetry()
+                telemetry.update()
+                idle()
+            }
+        }
         waitForStart()
+        if (isStopRequested) return
 
         var headingResetWasPressed = false
+        var targetUpWasPressed = false
+        var targetDownWasPressed = false
 
         while (opModeIsActive()) {
             val resetHeading = gamepad1.triangle
@@ -58,6 +105,18 @@ abstract class BaseTeleop : LinearOpMode() {
             )
             follower.update()
 
+            if (useShooterVelocityControl) {
+                val up = manipulator.dpad_up
+                val down = manipulator.dpad_down
+                if (up && !targetUpWasPressed) Shooter.TARGET += Shooter.TARGET_STEP
+                if (down && !targetDownWasPressed) Shooter.TARGET -= Shooter.TARGET_STEP
+                targetUpWasPressed = up
+                targetDownWasPressed = down
+
+                updateShooterPIDF()
+            }
+            val shooterTarget = Shooter.TARGET
+
             when {
                 manipulator.left_trigger > 0f -> intake.off()
                 manipulator.circle -> intake.reverse()
@@ -65,8 +124,16 @@ abstract class BaseTeleop : LinearOpMode() {
                 else -> intake.off()
             }.schedule()
             when {
-                manipulator.square -> shooter.reverse()
-                manipulator.left_trigger > 0.1f -> shooter.on()
+                manipulator.square -> if (useShooterVelocityControl) {
+                    shooter.runVelocity(-shooterTarget)
+                } else {
+                    shooter.reverse()
+                }
+                manipulator.left_trigger > 0.1f -> if (useShooterVelocityControl) {
+                    shooter.runVelocity(shooterTarget)
+                } else {
+                    shooter.on()
+                }
                 else -> shooter.off()
             }.schedule()
             when {
@@ -83,6 +150,11 @@ abstract class BaseTeleop : LinearOpMode() {
             telemetry.addData("Heading (deg)", "%.1f", Math.toDegrees(pose.heading()))
             telemetry.addData("Flywheel1 pos", shooter.position)
             telemetry.addData("Flywheel1 ticks/s", "%.0f", shooter.velocity)
+            if (useShooterVelocityControl) {
+                telemetry.addData("Shooter target (ticks/s)", shooterTarget)
+                telemetry.addData("Flywheel2 ticks/s", "%.0f", shooter.flywheel2Velocity)
+                addShooterPIDFTelemetry()
+            }
             telemetry.update()
         }
     }

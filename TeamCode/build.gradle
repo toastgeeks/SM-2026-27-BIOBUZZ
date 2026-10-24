@@ -31,6 +31,12 @@ kotlin {
     }
 }
 
+repositories {
+    maven { url 'https://maven.brott.dev/' }
+}
+
 dependencies {
     implementation project(':FtcRobotController')
+    // Pedro's Sloth runtime loads TeamCode separately; Dashboard must scan that same loader.
+    implementation 'com.acmerobotics.slothboard:dashboard:0.3.2+0.6.0'
 }
