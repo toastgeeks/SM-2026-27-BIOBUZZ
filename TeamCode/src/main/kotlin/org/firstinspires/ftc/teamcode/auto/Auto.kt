@@ -1,48 +1,61 @@
 package org.firstinspires.ftc.teamcode.auto
 
-import com.pedropathing.ivy.Scheduler
-import com.pedropathing.ivy.groups.Groups.sequential
-import com.pedropathing.ivy.pedro.PedroCommands.follow
-import com.pedropathing.ivy.pedro.PedroCommands.hold
-import com.pedropathing.math.Pose
-import com.pedropathing.paths.AtomicPath
-import com.pedropathing.paths.curves.Line
+import com.pedropathing.drivetrain.DrivePowers
+import com.pedropathing.revhub.drivetrains.Mecanum
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
+import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.pedro.Constants
 
 /**
- * Drives forward 24 inches with Pedro, then holds the end pose.
+ * Drives forward for one second, strafes right for half a second, then stops.
  */
 @Autonomous(name = "Auto", group = "Auto")
 class Auto : LinearOpMode() {
     override fun runOpMode() {
-        Scheduler.reset()
-        val follower = Constants.create(hardwareMap)
-        val start = Pose(0.0, 0.0, 0.0)
-        val end = Pose(24.0, 0.0, 0.0)
-        follower.setPose(start)
+        val drivetrain = Mecanum(hardwareMap, Constants.drivetrainConfig)
+        drivetrain.stop(true)
+        val timer = ElapsedTime()
 
-        val forward = AtomicPath(Line(start, end)).linear(start, end)
-        val routine = sequential(
-            follow(follower, forward),
-            hold(follower, end),
-        )
-
-        telemetry.addLine("Drives forward 24 in, then holds.")
+        telemetry.addLine("Forward 1 s, strafe right 0.5 s, then stop at 30% power.")
         telemetry.update()
-        waitForStart()
 
-        routine.schedule()
-        while (opModeIsActive()) {
-            follower.update()
-            Scheduler.execute()
+        try {
+            waitForStart()
+            timer.reset()
 
-            val pose = follower.pose()
-            telemetry.addData("X (in)", "%.2f", pose.x())
-            telemetry.addData("Y (in)", "%.2f", pose.y())
-            telemetry.addData("Heading (deg)", "%.1f", Math.toDegrees(pose.heading()))
-            telemetry.update()
+            while (opModeIsActive()) {
+                val elapsed = timer.seconds()
+                val phase = when {
+                    elapsed < FORWARD_SECONDS -> {
+                        drivetrain.drive(DrivePowers(DRIVE_POWER, 0.0, 0.0), true)
+                        "Forward"
+                    }
+                    elapsed < FORWARD_SECONDS + STRAFE_SECONDS -> {
+                        // Pedro uses positive strafe for left, so right is negative.
+                        drivetrain.drive(DrivePowers(0.0, -DRIVE_POWER, 0.0), true)
+                        "Strafe right"
+                    }
+                    else -> {
+                        drivetrain.stop(true)
+                        "Complete"
+                    }
+                }
+
+                telemetry.addData("Phase", phase)
+                telemetry.addData("Elapsed (s)", "%.2f", elapsed)
+                telemetry.update()
+                if (elapsed >= FORWARD_SECONDS + STRAFE_SECONDS) break
+                idle()
+            }
+        } finally {
+            drivetrain.stop(true)
         }
+    }
+
+    private companion object {
+        const val DRIVE_POWER = 0.3
+        const val FORWARD_SECONDS = 1.0
+        const val STRAFE_SECONDS = 0.5
     }
 }
