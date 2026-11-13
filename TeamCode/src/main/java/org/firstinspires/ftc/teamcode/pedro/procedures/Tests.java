@@ -303,10 +303,36 @@ class TestsLocalization extends TuningOpMode<Boolean> {
         while (opModeIsActive()) {
             drivetrain.drive(new DrivePowers(-gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x), true);
             localizer.update();
-            telemetry.addData("Pose", localizer.pose());
+
+            Pose pose = localizer.pose();
+            double headingDegrees = wrapDegrees(Math.toDegrees(pose.heading()));
+
+            telemetry.addLine("Position from where you pressed start");
+            telemetry.addLine(String.format("  Forward (x):  %7.1f in   %s", pose.x(), direction(pose.x(), "forward", "back")));
+            telemetry.addLine(String.format("  Left (y):     %7.1f in   %s", pose.y(), direction(pose.y(), "left", "right")));
+            telemetry.addLine(String.format("  Heading:      %7.1f deg  %s", headingDegrees, direction(headingDegrees, "turned left (CCW)", "turned right (CW)")));
+            telemetry.addLine(String.format("  From start:   %7.1f in", Math.hypot(pose.x(), pose.y())));
+            telemetry.addLine();
+            telemetry.addLine("Checks: drive forward -> Forward goes up");
+            telemetry.addLine("        strafe left   -> Left goes up");
+            telemetry.addLine("        turn left     -> Heading goes up");
+            telemetry.addLine();
+            telemetry.addLine("Left stick: drive/strafe   Right stick: turn");
             telemetry.update();
         }
         return true;
+    }
+
+    private static double wrapDegrees(double degrees) {
+        degrees %= 360.0;
+        if (degrees > 180.0) degrees -= 360.0;
+        if (degrees <= -180.0) degrees += 360.0;
+        return degrees;
+    }
+
+    private static String direction(double value, String positive, String negative) {
+        if (Math.abs(value) < 0.5) return "";
+        return value > 0 ? positive : negative;
     }
 }
 
