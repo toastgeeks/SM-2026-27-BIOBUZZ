@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.autotune;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -20,6 +21,7 @@ import java.util.List;
  * 4. Copy the printed P/I/D/F and motor directions into your subsystem.
  * </pre>
  */
+@Disabled
 @TeleOp(name = "Auto Tune Flywheel", group = "Tuning")
 public class AutoTuneFlywheel extends LinearOpMode {
     private static final double IDENTIFY_POWER = 0.15;

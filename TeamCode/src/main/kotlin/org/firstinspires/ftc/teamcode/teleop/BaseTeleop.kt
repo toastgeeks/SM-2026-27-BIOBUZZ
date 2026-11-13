@@ -24,8 +24,12 @@ abstract class BaseTeleop : LinearOpMode() {
     /** The gamepad that runs the mechanisms. Read after the OpMode is initialized. */
     protected abstract val manipulator: Gamepad
 
-    /** Opts a TeleOp into shared dashboard PIDF, velocity target, and d-pad adjustments. */
-    protected open val useShooterVelocityControl = false
+    /** Starts a local, d-pad-adjustable setpoint. LT runs it; square reverses with priority. */
+    protected open val initialShooterVelocity: Double? = null
+
+    /** Uses shared dashboard PIDF with either a local or shared velocity target. */
+    protected open val useShooterVelocityControl: Boolean
+        get() = initialShooterVelocity != null
 
     override fun runOpMode() {
         Scheduler.reset()
@@ -38,6 +42,8 @@ abstract class BaseTeleop : LinearOpMode() {
         var shooterPIDF = if (useShooterVelocityControl) Shooter.PIDF_COEFFICIENTS else null
         val shooter = Shooter(hardwareMap, shooterPIDF)
         val feed = Feed(hardwareMap)
+        val initialShooterTarget = initialShooterVelocity
+        var selectedShooterTarget = initialShooterTarget ?: Shooter.TARGET
 
         fun updateShooterPIDF() {
             val appliedPIDF = shooterPIDF ?: return
@@ -61,12 +67,21 @@ abstract class BaseTeleop : LinearOpMode() {
         telemetry.addLine("GP1 left stick drives. Right stick turns.")
         telemetry.addLine("GP1 triangle sets heading to 0.")
         telemetry.addLine("RT intake. Circle intake reverse.")
-        telemetry.addLine("LT flywheel. Square flywheel reverse. LT ignores intake.")
+        if (initialShooterTarget != null) {
+            telemetry.addLine("LT > 0.1: selected velocity. Square: reverse (priority). Neither: 0. LT ignores intake.")
+        } else {
+            telemetry.addLine("LT flywheel. Square flywheel reverse. LT ignores intake.")
+        }
         telemetry.addLine("RB feed. LB feed reverse.")
         if (useShooterVelocityControl) {
             telemetry.addLine("D-pad up/down adjusts shooter target by ${Shooter.TARGET_STEP} ticks/s.")
-            telemetry.addLine("Dashboard config: Shooter PIDF_*, TARGET and TARGET_STEP.")
-            telemetry.addData("Shooter target (ticks/s)", Shooter.TARGET)
+            if (initialShooterTarget == null) {
+                telemetry.addLine("Dashboard config: Shooter PIDF_*, TARGET and TARGET_STEP.")
+            } else {
+                telemetry.addLine("Dashboard config: Shooter PIDF_* and TARGET_STEP.")
+            }
+            telemetry.addData("Shooter target (ticks/s)", 0.0)
+            telemetry.addData("Shooter selected (ticks/s)", selectedShooterTarget)
             addShooterPIDFTelemetry()
         }
         telemetry.update()
@@ -74,7 +89,9 @@ abstract class BaseTeleop : LinearOpMode() {
         if (useShooterVelocityControl) {
             while (opModeInInit()) {
                 updateShooterPIDF()
-                telemetry.addData("Shooter target (ticks/s)", Shooter.TARGET)
+                if (initialShooterTarget == null) selectedShooterTarget = Shooter.TARGET
+                telemetry.addData("Shooter target (ticks/s)", 0.0)
+                telemetry.addData("Shooter selected (ticks/s)", selectedShooterTarget)
                 addShooterPIDFTelemetry()
                 telemetry.update()
                 idle()
@@ -108,14 +125,25 @@ abstract class BaseTeleop : LinearOpMode() {
             if (useShooterVelocityControl) {
                 val up = manipulator.dpad_up
                 val down = manipulator.dpad_down
-                if (up && !targetUpWasPressed) Shooter.TARGET += Shooter.TARGET_STEP
-                if (down && !targetDownWasPressed) Shooter.TARGET -= Shooter.TARGET_STEP
+                val change = (if (up && !targetUpWasPressed) 1 else 0) -
+                    (if (down && !targetDownWasPressed) 1 else 0)
+                if (initialShooterTarget == null) {
+                    if (change != 0) Shooter.TARGET += change * Shooter.TARGET_STEP
+                    selectedShooterTarget = Shooter.TARGET
+                } else {
+                    selectedShooterTarget = (selectedShooterTarget + change * Shooter.TARGET_STEP)
+                        .coerceAtLeast(0.0)
+                }
                 targetUpWasPressed = up
                 targetDownWasPressed = down
 
                 updateShooterPIDF()
             }
-            val shooterTarget = Shooter.TARGET
+            val shooterTarget = when {
+                manipulator.square -> -selectedShooterTarget
+                manipulator.left_trigger > 0.1f -> selectedShooterTarget
+                else -> 0.0
+            }
 
             when {
                 manipulator.left_trigger > 0f -> intake.off()
@@ -123,18 +151,14 @@ abstract class BaseTeleop : LinearOpMode() {
                 manipulator.right_trigger > 0.1f -> intake.on()
                 else -> intake.off()
             }.schedule()
-            when {
-                manipulator.square -> if (useShooterVelocityControl) {
-                    shooter.runVelocity(-shooterTarget)
-                } else {
-                    shooter.reverse()
+            if (useShooterVelocityControl) {
+                shooter.runVelocity(shooterTarget)
+            } else {
+                when {
+                    manipulator.square -> shooter.reverse()
+                    manipulator.left_trigger > 0.1f -> shooter.on()
+                    else -> shooter.off()
                 }
-                manipulator.left_trigger > 0.1f -> if (useShooterVelocityControl) {
-                    shooter.runVelocity(shooterTarget)
-                } else {
-                    shooter.on()
-                }
-                else -> shooter.off()
             }.schedule()
             when {
                 manipulator.left_bumper -> feed.reverse()
@@ -152,6 +176,7 @@ abstract class BaseTeleop : LinearOpMode() {
             telemetry.addData("Flywheel1 ticks/s", "%.0f", shooter.velocity)
             if (useShooterVelocityControl) {
                 telemetry.addData("Shooter target (ticks/s)", shooterTarget)
+                telemetry.addData("Shooter selected (ticks/s)", selectedShooterTarget)
                 telemetry.addData("Flywheel2 ticks/s", "%.0f", shooter.flywheel2Velocity)
                 addShooterPIDFTelemetry()
             }

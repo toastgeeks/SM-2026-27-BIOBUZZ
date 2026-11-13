@@ -78,10 +78,10 @@ class Shooter(hardwareMap: HardwareMap, private val pidf: PIDFCoefficients? = nu
     }
 
     companion object {
-        @JvmField @Volatile var PIDF_P = 1.25
-        @JvmField @Volatile var PIDF_I = 0.0
+        @JvmField @Volatile var PIDF_P = 444.0052
+        @JvmField @Volatile var PIDF_I = 0.6855
         @JvmField @Volatile var PIDF_D = 0.0
-        @JvmField @Volatile var PIDF_F = 24.0
+        @JvmField @Volatile var PIDF_F = 22.2003
         @JvmField @Volatile var TARGET = 800.0
         @JvmField @Volatile var TARGET_STEP = 25.0
 
