@@ -1,12 +1,12 @@
 package org.firstinspires.ftc.teamcode
 
 /**
- * Device names from the Control Hub configuration "bi2w".
+ * Device names from the Control Hub configuration "sweet2".
  *
  * Control Hub drivetrain
  *   motor 0: backLeftMotor
- *   motor 1: backRightMotor
- *   motor 2: frontLeftMotor
+ *   motor 1: frontLeftMotor
+ *   motor 2: backRightMotor
  *   motor 3: frontRightMotor
  *   I2C bus 1: pinpoint
  *

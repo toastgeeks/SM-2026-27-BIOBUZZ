@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode.check
 
-import com.qualcomm.robotcore.eventloop.opmode.Disabled
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.hardware.DcMotor
@@ -11,7 +10,7 @@ import org.firstinspires.ftc.teamcode.HardwareNames
  * Spins one drive wheel at a time so the d-pad mapping can be checked.
  *
  * Hold a d-pad button to run that wheel forward at 30% power.
- * Front left, front right, and back left are reversed so positive power rolls each wheel forward.
+ * Directions make positive power roll that physical wheel forward.
  *
  * D-pad left: front left
  * D-pad up: front right
@@ -19,12 +18,11 @@ import org.firstinspires.ftc.teamcode.HardwareNames
  * D-pad down: back left
  */
 @TeleOp(name = "DriveTrainTest", group = "Test")
-@Disabled
 class DriveTrainTest : LinearOpMode() {
     override fun runOpMode() {
-        val frontLeft = motor(HardwareNames.FRONT_LEFT, DcMotorSimple.Direction.REVERSE)
-        val frontRight = motor(HardwareNames.RIGHT_FRONT, DcMotorSimple.Direction.REVERSE)
         val backRight = motor(HardwareNames.BACK_RIGHT, DcMotorSimple.Direction.FORWARD)
+        val frontRight = motor(HardwareNames.RIGHT_FRONT, DcMotorSimple.Direction.REVERSE)
+        val frontLeft = motor(HardwareNames.FRONT_LEFT, DcMotorSimple.Direction.REVERSE)
         val backLeft = motor(HardwareNames.BACK_LEFT, DcMotorSimple.Direction.REVERSE)
 
         telemetry.addLine("Hold a d-pad button to spin that wheel forward.")
@@ -42,9 +40,9 @@ class DriveTrainTest : LinearOpMode() {
             val backRightPower = if (gamepad1.dpad_right) POWER else 0.0
             val backLeftPower = if (gamepad1.dpad_down) POWER else 0.0
 
-            frontLeft.power = frontLeftPower
-            frontRight.power = frontRightPower
             backRight.power = backRightPower
+            frontRight.power = frontRightPower
+            frontLeft.power = frontLeftPower
             backLeft.power = backLeftPower
 
             telemetry.addData("Front left (dpad left)", frontLeftPower)
