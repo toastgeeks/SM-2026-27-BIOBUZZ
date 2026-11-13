@@ -33,7 +33,17 @@ Hardware configuration `bi2w`. `hardwareMap` names must match these strings. Use
 
 Directions already chosen: both left drive motors reversed, intake reversed, both flywheels reversed. The same power command goes to both flywheels, and they are not opposing.
 
-`flywheel1` has an encoder plugged into Expansion Hub port 0. `flywheel2` does not. Bench OpModes keep `RUN_WITHOUT_ENCODER` and read flywheel1 position and velocity.
+Both flywheels have working encoders (verified 2026-11-12: they read within one 20 ticks/s step of each other). `Shooter` runs each in `RUN_USING_ENCODER` with the same PIDF, so each hub loop uses its own encoder. Bench OpModes keep `RUN_WITHOUT_ENCODER` and read flywheel1 position and velocity.
+
+## Remote flywheel tuning
+
+`tuning/RemoteFlywheelTuner.kt` ("Remote Flywheel Tuner") lets the laptop run flywheel tests over adb. Start it on the Driver Station (INIT, then start), then drive it with `tools/flywheel_remote.py`. Commands go through `/sdcard/FIRST/claude-tune/cmd.properties`; results come back as `run-<seq>.csv`. adb is at `~/Library/Android/sdk/platform-tools/adb` (not on PATH); the hub is `192.168.43.1:5555`.
+
+- `power --power 1.0 --duration 8`: open-loop top speed.
+- `velocity --p .. --i .. --f .. --from A --settle S --to B --duration D`: step test.
+- Add `--feed` to run the feed and intake during the step and report each shot (found from feed current spikes).
+
+Findings from 2026-11-12: the flywheel is heavy (about 1.6 s from 0 to 1125 at full power on a fresh battery), and top speed depends strongly on battery voltage (about 1830 ticks/s fresh, 1460 drained). The Shooter PIDF (P 444, I 0.6855, F 22.2) holds about 20 ticks/s above the target, and a shot drops speed under 2%, recovering in about 0.4 s. Shot spread comes from ball variation, not speed. Teleop starts at 1212 ticks/s: misses were short at 1200 and high at 1225.
 
 ## OpModes
 

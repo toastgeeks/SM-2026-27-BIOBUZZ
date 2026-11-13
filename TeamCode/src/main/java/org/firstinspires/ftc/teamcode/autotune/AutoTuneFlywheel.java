@@ -21,7 +21,7 @@ import java.util.List;
  * 4. Copy the printed P/I/D/F and motor directions into your subsystem.
  * </pre>
  */
-@Disabled
+//@Disabled
 @TeleOp(name = "Auto Tune Flywheel", group = "Tuning")
 public class AutoTuneFlywheel extends LinearOpMode {
     private static final double IDENTIFY_POWER = 0.15;
