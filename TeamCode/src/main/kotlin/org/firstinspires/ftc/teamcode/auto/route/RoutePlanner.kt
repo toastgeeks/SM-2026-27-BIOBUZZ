@@ -3,9 +3,10 @@ package org.firstinspires.ftc.teamcode.auto.route
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
-import kotlin.math.sqrt
+import kotlin.math.sin
 
 /**
  * Turns a [RouteSpec] into drive legs and checks it against the HIVE and the walls. Plain Kotlin
@@ -20,12 +21,15 @@ object RoutePlanner {
     /** Half the robot's length and width. */
     const val ROBOT_HALF = 9.0
 
-    /** Center to corner, the most the robot sticks out at any heading. */
-    val ROBOT_RADIUS = ROBOT_HALF * sqrt(2.0)
-
     /** The HIVE fills tiles C3:D4. */
     const val HIVE_MIN = 48.0
     const val HIVE_MAX = 96.0
+
+    /** Warn when the robot passes closer than this to the HIVE, inches. */
+    const val HIVE_MARGIN = 2.0
+
+    /** Warn when the route ends closer than this to a wall, inches. Touching is a penalty. */
+    const val END_WALL_GAP = 0.5
 
     private const val SAMPLES = 60
 
@@ -38,21 +42,34 @@ object RoutePlanner {
         var at = spec.start
         var heading = spec.facing.radians
         val warnings = mutableListOf<String>()
-        warnings += wallWarnings("Start", listOf(at))
-        if (hiveGap(at) < ROBOT_RADIUS) warnings += "Start is inside or touching the HIVE."
+        warnings += clearanceWarnings("Start", listOf(RoutePose(at.x, at.y, heading)))
 
         var legCount = 0
+        var spinning: Double? = null
+        fun checkVelocity(label: String, velocity: Double) {
+            if (velocity <= 0.0) throw RouteException("$label: velocity must be above 0.")
+            if (velocity > SAFE_FLYWHEEL_SPEED) {
+                warnings += "$label: a drained battery tops out near %.0f ticks/s.".format(SAFE_FLYWHEEL_SPEED)
+            }
+        }
+
         val steps = spec.steps.map<StepSpec, RouteStep> { item ->
             val step = when (item) {
+                is StepSpec.SpinUp -> {
+                    val label = "Spin up: %.0f ticks/s".format(item.velocity)
+                    checkVelocity(label, item.velocity)
+                    spinning = item.velocity
+                    return@map SpinUp(label, item.velocity)
+                }
                 is StepSpec.Shoot -> {
-                    val label = "Shoot: %.0f ticks/s, feed %.1f s".format(item.velocity, item.feedSeconds)
-                    if (item.velocity <= 0.0) throw RouteException("$label: velocity must be above 0.")
+                    val velocity = item.velocity ?: spinning ?: throw RouteException(
+                        "shoot(feedSeconds = ...) needs a spinUp(...) before it, or give it a velocity."
+                    )
+                    val label = "Shoot: %.0f ticks/s, feed %.1f s".format(velocity, item.feedSeconds)
+                    checkVelocity(label, velocity)
                     if (item.feedSeconds <= 0.0) throw RouteException("$label: feed time must be above 0.")
-                    if (item.velocity > SAFE_FLYWHEEL_SPEED) {
-                        warnings += "$label: a drained battery tops out near %.0f ticks/s."
-                            .format(SAFE_FLYWHEEL_SPEED)
-                    }
-                    return@map Shoot(label, item.velocity, item.feedSeconds)
+                    spinning = null
+                    return@map Shoot(label, velocity, item.feedSeconds)
                 }
                 is StepSpec.Wait -> {
                     val label = "Wait ${item.ms} ms"
@@ -81,41 +98,75 @@ object RoutePlanner {
                 BACKWARD -> LegHeading.ReverseTangent to pathAngle + PI
             }
 
-            val samples = (0..SAMPLES).map { bezier(controls, it.toDouble() / SAMPLES) }
-            val closest = samples.minOf { hiveGap(it) }
-            if (closest < ROBOT_RADIUS) {
-                warnings += if (closest <= 0.0) "$label drives through the HIVE."
-                else "$label passes %.1f in from the HIVE; a turning robot needs %.1f."
-                    .format(closest, ROBOT_RADIUS)
+            val poses = (0..SAMPLES).map { i ->
+                val t = i.toDouble() / SAMPLES
+                val p = bezier(controls, t)
+                RoutePose(p.x, p.y, headingAt(legHeading, controls, t))
             }
-            warnings += wallWarnings(label, samples)
+            warnings += clearanceWarnings(label, poses)
 
             at = step.point
             heading = endHeading
             Leg(label, controls, legHeading)
         }
 
+        if (spinning != null) {
+            warnings += "The flywheels are still spinning at the end. Add a shoot(...) after spinUp(...)."
+        }
+
+        val end = RoutePose(at.x, at.y, heading)
+        if (wallGap(end) < END_WALL_GAP) {
+            warnings += "The route ends touching a wall, which is a penalty. Use offWall(...)."
+        }
+
         return Route(
             start = RoutePose(spec.start.x, spec.start.y, spec.facing.radians),
             startName = "${spec.start.name} facing ${spec.facing}",
             steps = steps,
-            end = RoutePose(at.x, at.y, heading),
+            end = end,
             warnings = warnings.distinct(),
         )
     }
 
-    private fun wallWarnings(label: String, points: List<FieldPoint>): List<String> {
-        val closest = points.minOf { minOf(it.x, it.y, FIELD - it.x, FIELD - it.y) }
-        return if (closest < ROBOT_HALF - 0.01) {
-            listOf("$label puts the robot center %.1f in from a wall; it needs %.1f.".format(closest, ROBOT_HALF))
-        } else emptyList()
+    /**
+     * How far the robot's footprint sticks out from its center along x and y. 9 in when square to
+     * the field, up to 12.7 in at 45 degrees.
+     */
+    private fun reach(heading: Double) = ROBOT_HALF * (abs(cos(heading)) + abs(sin(heading)))
+
+    /** Gap from the robot's footprint to the nearest wall. Negative means into the wall. */
+    private fun wallGap(p: RoutePose): Double {
+        val r = reach(p.heading)
+        return minOf(p.x - r, p.y - r, FIELD - p.x - r, FIELD - p.y - r)
     }
 
-    /** Distance from a point to the HIVE's square, 0 inside it. */
-    fun hiveGap(p: FieldPoint): Double {
-        val dx = max(0.0, max(HIVE_MIN - p.x, p.x - HIVE_MAX))
-        val dy = max(0.0, max(HIVE_MIN - p.y, p.y - HIVE_MAX))
+    /** Gap from the robot's footprint to the HIVE. 0 means touching or overlapping. */
+    private fun hiveGap(p: RoutePose): Double {
+        val r = reach(p.heading)
+        val dx = max(0.0, max(HIVE_MIN - (p.x + r), (p.x - r) - HIVE_MAX))
+        val dy = max(0.0, max(HIVE_MIN - (p.y + r), (p.y - r) - HIVE_MAX))
         return hypot(dx, dy)
+    }
+
+    private fun clearanceWarnings(label: String, poses: List<RoutePose>): List<String> {
+        val warnings = mutableListOf<String>()
+        val hive = poses.minOf(::hiveGap)
+        if (hive <= 0.0) warnings += "$label hits the HIVE."
+        else if (hive < HIVE_MARGIN) warnings += "$label passes %.1f in from the HIVE; keep at least %.0f."
+            .format(hive, HIVE_MARGIN)
+        val wall = poses.minOf(::wallGap)
+        if (wall < -0.01) warnings += "$label goes %.1f in into a wall.".format(-wall)
+        return warnings
+    }
+
+    private fun headingAt(heading: LegHeading, controls: List<FieldPoint>, t: Double): Double = when (heading) {
+        is LegHeading.Constant -> heading.radians
+        is LegHeading.Linear -> heading.from + (heading.to - heading.from) * t
+        LegHeading.Tangent, LegHeading.ReverseTangent -> {
+            // A Bezier curve's direction is the Bezier of its control point differences.
+            val d = bezier(controls.zipWithNext { a, b -> FieldPoint(b.x - a.x, b.y - a.y, "") }, t)
+            atan2(d.y, d.x) + if (heading == LegHeading.ReverseTangent) PI else 0.0
+        }
     }
 
     private fun bezier(controls: List<FieldPoint>, t: Double): FieldPoint {
@@ -149,6 +200,9 @@ data class Leg(
     val controls: List<FieldPoint>,
     val heading: LegHeading,
 ) : RouteStep()
+
+/** Start the flywheels toward [velocity] ticks/s without waiting. */
+data class SpinUp(override val label: String, val velocity: Double) : RouteStep()
 
 /** Spin the flywheels to [velocity] ticks/s, then feed for [feedSeconds]. */
 data class Shoot(override val label: String, val velocity: Double, val feedSeconds: Double) : RouteStep()

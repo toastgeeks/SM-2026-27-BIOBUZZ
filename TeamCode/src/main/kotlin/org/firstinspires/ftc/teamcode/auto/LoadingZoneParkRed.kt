@@ -10,10 +10,11 @@ import org.firstinspires.ftc.teamcode.auto.route.*
 @Autonomous(name = "Loading Zone Park Red", group = "Auto")
 class LoadingZoneParkRed : RouteAuto(
     route(start = C1 against AUDIENCE, facing = AUDIENCE) {
-        shoot(velocity = 1137, feedSeconds = 3)
+        spinUp(velocity = 1137)
+        shoot(feedSeconds = 3)
         wait(5000)
-        driveTo(A_B / R1_2)
-        driveTo(A_B / R5, facing = BLUE)
+        driveTo(at(A + 0.5, 1.5))
+        driveTo(at(A + 0.5, 5), facing = BLUE)
         driveTo(A5.offWall(RED, gap = 6)) // touching the wall at the end is a penalty
     },
 )

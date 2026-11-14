@@ -45,6 +45,26 @@ Both flywheels have working encoders (verified 2026-11-12: they read within one 
 
 Findings from 2026-11-12: the flywheel is heavy (about 1.6 s from 0 to 1125 at full power on a fresh battery), and top speed depends strongly on battery voltage (about 1830 ticks/s fresh, 1460 drained). The Shooter PIDF (P 444, I 0.6855, F 22.2) holds about 20 ticks/s above the target, and a shot drops speed under 2%, recovering in about 0.4 s. Shot spread comes from ball variation, not speed. Teleop starts at 1212 ticks/s: misses were short at 1200 and high at 1225.
 
+## Route autos
+
+Write an auto as a `RouteAuto` in `auto/`, using the `route { }` builder in `auto/route/Field.kt`:
+
+```kotlin
+@Autonomous(name = "Far Start Park Red", group = "Auto")
+class FarStartParkRed : RouteAuto(
+    route(start = C6 against FAR, facing = FAR) {
+        wait(5000)
+        shoot(velocity = 1137, feedSeconds = 3)
+        driveTo(C5, facing = RED)
+        driveTo(at(A, 5.5).offWall(RED, gap = 6))
+    },
+)
+```
+
+Spots are `at(column, row)`: whole numbers are tile centers and `.5` is the line between tiles (`at(E + 0.5, 5.5)` is the E5/E6/F5/F6 corner). `C1` is shorthand for `at(C, 1)`. `against WALL` touches a wall and `offWall(WALL, gap)` stops short of one; touching a wall at the end of AUTO is a penalty. Steps are `driveTo`, `curveTo(..., via = ...)`, `shoot`, `spinUp` (does not wait, so the flywheels spin up while driving), and `wait(ms)`. A leg without `facing` keeps its heading. `RouteCommands` runs the steps as one Ivy command; see `auto/route/README.md`.
+
+`RoutePlanner` checks the robot's 18 in footprint at its heading along every leg against the HIVE (C3:D4) and the walls. Warnings show at INIT, and `AllAutosTest` fails on any warning in any auto, so run `./gradlew :TeamCode:testDebugUnitTest` after writing one.
+
 ## OpModes
 
 Use `LinearOpMode`: `runOpMode`, `waitForStart`, then `while (opModeIsActive())`. `sleep()` is allowed. A linear OpMode cannot override `init`, `loop`, or `stop`.

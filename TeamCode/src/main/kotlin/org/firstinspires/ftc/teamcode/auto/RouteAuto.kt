@@ -2,35 +2,38 @@ package org.firstinspires.ftc.teamcode.auto
 
 import com.pedropathing.api.Paths.curve
 import com.pedropathing.api.Paths.line
+import com.pedropathing.ivy.Command
 import com.pedropathing.ivy.Scheduler
+import com.pedropathing.ivy.groups.Groups.parallel
 import com.pedropathing.math.Pose
 import com.pedropathing.math.Vector2D
 import com.pedropathing.paths.Path
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
-import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.auto.route.Leg
 import org.firstinspires.ftc.teamcode.auto.route.LegHeading
 import org.firstinspires.ftc.teamcode.auto.route.Route
+import org.firstinspires.ftc.teamcode.auto.route.RouteCommands
+import org.firstinspires.ftc.teamcode.auto.route.RouteDrive
 import org.firstinspires.ftc.teamcode.auto.route.RouteException
+import org.firstinspires.ftc.teamcode.auto.route.RouteMechanisms
 import org.firstinspires.ftc.teamcode.auto.route.RoutePlanner
+import org.firstinspires.ftc.teamcode.auto.route.RoutePose
 import org.firstinspires.ftc.teamcode.auto.route.RouteSpec
-import org.firstinspires.ftc.teamcode.auto.route.Shoot
-import org.firstinspires.ftc.teamcode.auto.route.Wait
 import org.firstinspires.ftc.teamcode.pedro.Constants
 import org.firstinspires.ftc.teamcode.subsystems.Feed
 import org.firstinspires.ftc.teamcode.subsystems.Intake
 import org.firstinspires.ftc.teamcode.subsystems.Shooter
 
 /**
- * Auto that runs a route built with `route { ... }` (see Field.kt): drive legs and shots, in
- * order. Routes are in field coordinates, so red and blue each write their own.
+ * Auto that runs a route built with `route { ... }`. See auto/route/README.md.
  *
- * INIT shows the route and any HIVE, wall, or flywheel warnings on the Driver Station. A route
- * that can't be read shows the error and the robot does not move.
+ * [RoutePlanner] checks the route, [RouteCommands] turns it into one Ivy command, and this class
+ * connects that command to Pedro and the subsystems and runs the scheduler.
+ *
+ * INIT shows the route and any warnings on the Driver Station. A route that can't be planned shows
+ * the error and the robot does not move.
  */
-abstract class RouteAuto(private val spec: RouteSpec) : LinearOpMode() {
-
-    private enum class ShotPhase { SPIN_UP, FEED }
+abstract class RouteAuto(internal val spec: RouteSpec) : LinearOpMode() {
 
     override fun runOpMode() {
         Scheduler.reset()
@@ -45,99 +48,53 @@ abstract class RouteAuto(private val spec: RouteSpec) : LinearOpMode() {
         val shooter = Shooter(hardwareMap, Shooter.PIDF_COEFFICIENTS)
         val feed = Feed(hardwareMap)
         val intake = Intake(hardwareMap)
+        val paths = route.legs.associateWith(::toPath)
 
-        val startPose = Pose(route.start.x, route.start.y, route.start.heading)
-        val endPose = Pose(route.end.x, route.end.y, route.end.heading)
-        val paths = route.steps.map { (it as? Leg)?.let(::toPath) }
+        val drive = object : RouteDrive {
+            override fun follow(leg: Leg) = follower.follow(paths.getValue(leg))
+            override fun atLegEnd() = follower.atParametricEnd()
+            override fun hold(pose: RoutePose) = follower.hold(pose.toPedro())
+            override fun stop() = follower.stop()
+        }
+        val mechanisms = object : RouteMechanisms {
+            override val flywheelVelocity get() = shooter.velocity
+            override fun spinUp(velocity: Double) = shooter.runVelocity(velocity)
+            override fun feed(): Command = parallel(feed.on(), intake.on())
+            override fun allOff(): Command = parallel(shooter.off(), feed.off(), intake.off())
+        }
+        val runner = RouteCommands(route, drive, mechanisms)
 
+        val startPose = route.start.toPedro()
         follower.setPose(startPose)
         showRoute(route)
 
         waitForStart()
         follower.setPose(startPose)
-
-        var step = 0
-        var shotPhase = ShotPhase.SPIN_UP
-        var spinUpTimedOut = false
-        var stopped = false
-        val timer = ElapsedTime()
-
-        fun begin(index: Int) {
-            step = index
-            timer.reset()
-            when (val s = route.steps.getOrNull(index)) {
-                is Leg -> follower.follow(paths[index]!!)
-                is Shoot -> {
-                    // Idle brakes the drivetrain. Holding a pose could push into a wall while we shoot.
-                    follower.stop()
-                    shooter.runVelocity(s.velocity).schedule()
-                    shotPhase = ShotPhase.SPIN_UP
-                }
-                is Wait -> follower.stop()
-                // Holding forever pushes into a wall when the end pose is a little off the real
-                // field, so settle briefly, then stop.
-                null -> follower.hold(endPose)
-            }
-        }
-
-        begin(0)
+        runner.command().schedule()
 
         try {
             while (opModeIsActive()) {
                 follower.update()
-
-                when (val s = route.steps.getOrNull(step)) {
-                    is Leg -> if (follower.atParametricEnd()) begin(step + 1)
-                    is Shoot -> when (shotPhase) {
-                        ShotPhase.SPIN_UP -> {
-                            val ready = shooter.velocity >= s.velocity - SPIN_UP_TOLERANCE
-                            if (ready || timer.seconds() > SPIN_UP_TIMEOUT) {
-                                spinUpTimedOut = !ready
-                                feed.on().schedule()
-                                intake.on().schedule()
-                                shotPhase = ShotPhase.FEED
-                                timer.reset()
-                            }
-                        }
-                        ShotPhase.FEED -> if (timer.seconds() >= s.feedSeconds) {
-                            shooter.off().schedule()
-                            feed.off().schedule()
-                            intake.off().schedule()
-                            begin(step + 1)
-                        }
-                    }
-                    is Wait -> if (timer.milliseconds() >= s.ms) begin(step + 1)
-                    null -> if (!stopped && timer.seconds() > HOLD_SECONDS) {
-                        follower.stop()
-                        stopped = true
-                    }
-                }
-
                 Scheduler.execute()
 
                 val current = follower.pose()
-                val s = route.steps.getOrNull(step)
-                telemetry.addData("Step", when {
-                    s is Shoot -> "${s.label} (${if (shotPhase == ShotPhase.SPIN_UP) "spinning up" else "feeding"})"
-                    s != null -> s.label
-                    stopped -> "Done (stopped)"
-                    else -> "Done (settling)"
-                })
+                telemetry.addData("Step", runner.status)
                 telemetry.addData("Flywheel (ticks/s)", "%.0f", shooter.velocity)
-                if (spinUpTimedOut) telemetry.addLine("Spin-up timed out; fed below target.")
+                if (runner.spinUpTimedOut) telemetry.addLine("Spin-up timed out; fed below target.")
                 telemetry.addData("X (in)", "%.1f", current.x())
                 telemetry.addData("Y (in)", "%.1f", current.y())
                 telemetry.addData("Heading (deg)", "%.1f", Math.toDegrees(current.heading()))
                 telemetry.update()
             }
         } finally {
+            Scheduler.reset()
             follower.stop()
-            shooter.off().schedule()
-            feed.off().schedule()
-            intake.off().schedule()
+            mechanisms.allOff().schedule()
             Scheduler.execute()
         }
     }
+
+    private fun RoutePose.toPedro() = Pose(x, y, heading)
 
     private fun toPath(leg: Leg): Path {
         val points = leg.controls.map { Vector2D.cartesian(it.x, it.y) }
@@ -181,16 +138,5 @@ abstract class RouteAuto(private val spec: RouteSpec) : LinearOpMode() {
             telemetry.update()
             idle()
         }
-    }
-
-    private companion object {
-        /** How long to hold the last pose before stopping the drivetrain. */
-        const val HOLD_SECONDS = 1.0
-
-        /** Feed once the flywheel is within this many ticks/s below the target (about 2%). */
-        const val SPIN_UP_TOLERANCE = 25.0
-
-        /** Feed anyway after this long; 1.6 s reaches 1125 on a fresh battery. */
-        const val SPIN_UP_TIMEOUT = 4.0
     }
 }

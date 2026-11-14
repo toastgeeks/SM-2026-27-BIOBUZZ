@@ -10,10 +10,11 @@ import org.firstinspires.ftc.teamcode.auto.route.*
 @Autonomous(name = "Far Start Park Red", group = "Auto")
 class FarStartParkRed : RouteAuto(
     route(start = C6 against FAR, facing = FAR) {
-        wait(5000)
-        shoot(velocity = 1137, feedSeconds = 3)
+        spinUp(velocity = 1137)
+        wait(5000) // the flywheels reach speed during the wait
+        shoot(feedSeconds = 3)
         driveTo(C5, facing = RED)
         // Halfway between rows 5 and 6. Touching the wall at the end is a penalty.
-        driveTo((A / R5_6).offWall(RED, gap = 6))
+        driveTo(at(A, 5.5).offWall(RED, gap = 6))
     },
 )
